@@ -17,8 +17,10 @@ The buildpack will do the following:
   * Contributes Spring Cloud Data Flow configuration metadata to `org.springframework.cloud.dataflow.spring-configuration-metadata.json` image label
 * Contributes `Implementation-Title` manifest entry to `org.opencontainers.image.title` image label
 * Contributes `Implementation-version` manifest entry to `org.opencontainers.image.version` image label
+* Contributes `Spring-Cloud-Bindings` to `org.springframework.cloud.bindings.boot.enable` image label
 * Contributes dependency information extracted from Maven naming conventions to the image's BOM
 * When contributing to a JVM application:
+    * If the application enables Spring Cloud Bindings it will not contribute to Spring Cloud Bindings layer
     * Contributes [Spring Cloud Bindings][b] as an application dependency
       * This enables bindings-aware Spring Boot auto-configuration when [CNB bindings][c] are present during launch
     * If `<APPLICATION_ROOT>/META-INF/MANIFEST.MF` contains a `Spring-Boot-Layers-Index` entry
