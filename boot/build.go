@@ -40,6 +40,7 @@ const (
 	LabelImageVersion                  = "org.opencontainers.image.version"
 	LabelBootConfigurationMetadata     = "org.springframework.boot.spring-configuration-metadata.json"
 	LabelDataFlowConfigurationMetadata = "org.springframework.cloud.dataflow.spring-configuration-metadata.json"
+	LabelSpringCloudBindings		   = "org.springframework.cloud.bindings.boot.enable"
 )
 
 type Build struct {
@@ -131,8 +132,13 @@ func (b Build) Build(context libcnb.BuildContext) (libcnb.BuildResult, error) {
 		result.Layers = append(result.Layers, classpathLayer)
 
 	} else {
+		springCloudBinding := false
+		if _, ok := manifest.Get("Spring-Cloud-Bindings")
+		ok {
+			springCloudBinding = true
+		}
 		// contribute Spring Cloud Bindings - false by default
-		if !cr.ResolveBool("BP_SPRING_CLOUD_BINDINGS_DISABLED") {
+		if (!cr.ResolveBool("BP_SPRING_CLOUD_BINDINGS_DISABLED") && !springCloudBinding) {
 			h, be := libpak.NewHelperLayer(context.Buildpack, "spring-cloud-bindings")
 			h.Logger = b.Logger
 			result.Layers = append(result.Layers, h)
@@ -214,6 +220,13 @@ func labels(context libcnb.BuildContext, manifest *properties.Properties) ([]lib
 	if s, ok := manifest.Get("Implementation-Version"); ok {
 		labels = append(labels, libcnb.Label{Key: LabelImageVersion, Value: s})
 	}
+
+	if s, ok := manifest.Get("Spring-Cloud-Bindings"); !ok {
+		labels = append(labels, libcnb.Label{Key: LabelSpringCloudBindings, Value: "false"})
+	} else {
+		labels = append(labels, libcnb.Label{Key: LabelSpringCloudBindings, Value: s})
+	}
+	
 
 	mdLabels, err := configurationMetadataLabels(context.Application.Path, manifest)
 	if err != nil {
