@@ -159,6 +159,33 @@ Implementation-Version: 2.2.2
 		}))
 	})
 
+	it("sets org.springframework.cloud.bindings.boot.enable label to be false when not found", func() {
+		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+`), 0644)).To(Succeed())
+
+		result, err := build.Build(ctx)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(result.Labels).To(ContainElement(libcnb.Label{Key: "org.springframework.cloud.bindings.boot.enable", Value: "false"}))
+	})
+
+	it("contributes org.springframework.cloud.bindings.boot.enable label", func() {
+		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+Spring-Cloud-Bindings: true
+`), 0644)).To(Succeed())
+
+		result, err := build.Build(ctx)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(result.Labels).To(ContainElement(libcnb.Label{Key: "org.springframework.cloud.bindings.boot.enable", Value: "true"}))
+	})
+
 	it("contributes dependencies bom entry for API <= 0.6", func() {
 		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
 Spring-Boot-Version: 1.1.1
@@ -254,6 +281,35 @@ Spring-Boot-Lib: BOOT-INF/lib
 		Expect(result.BOM.Entries[2].Name).To(Equal("spring-cloud-bindings"))
 		Expect(result.BOM.Entries[2].Launch).To(BeTrue())
 		Expect(result.BOM.Entries[2].Build).To(BeFalse())
+	})
+
+	it("will not have spring cloud binding layers when Spring-Cloud-Bindings label is true ", func() {
+		Expect(ioutil.WriteFile(filepath.Join(ctx.Application.Path, "META-INF", "MANIFEST.MF"), []byte(`
+Spring-Boot-Version: 1.1.1
+Spring-Boot-Classes: BOOT-INF/classes
+Spring-Boot-Lib: BOOT-INF/lib
+Spring-Cloud-Bindings: true
+`), 0644)).To(Succeed())
+		ctx.Buildpack.API = "0.7"
+		ctx.Buildpack.Metadata = map[string]interface{}{
+			"dependencies": []map[string]interface{}{
+				{
+					"id":      "spring-cloud-bindings",
+					"version": "1.1.0",
+					"stacks":  []interface{}{"test-stack-id"},
+					"cpes":    []string{"cpe:2.3:a:vmware:spring_cloud_bindings:1.8.0:*:*:*:*:*:*:*"},
+					"purl":    "pkg:generic/springframework/spring-cloud-bindings@1.8.0",
+				},
+			},
+		}
+
+		result, err := build.Build(ctx)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.Layers).To(HaveLen(1))
+		Expect(result.Layers[0].Name()).To(Equal("web-application-type"))
+
+		Expect(result.BOM.Entries).To(HaveLen(1))
+		Expect(result.BOM.Entries[0].Name).To(Equal("dependencies"))
 	})
 
 	it("contributes slices from layers index", func() {
